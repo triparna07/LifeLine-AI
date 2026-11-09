@@ -96,7 +96,7 @@ python app.py
 Open your browser and visit:
 
 ```text
-https://lifeline-ai-cfu4.onrender.com
+127.0.0.1:5000
 
 ```
 ## 🌐 Live Demo
