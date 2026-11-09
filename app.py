@@ -645,8 +645,25 @@ const response = await fetch("/analyze", {
     })
 });
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Analysis failed.");
+        const responseText = await response.text();
+
+let data;
+
+try {
+    data = JSON.parse(responseText);
+} catch (error) {
+    throw new Error(
+        "The server is temporarily unavailable. Please wait a few minutes and try again."
+    );
+}
+
+if (!response.ok) {
+    throw new Error(
+        data.risk_explanation ||
+        data.advice ||
+        "Analysis failed. Please try again."
+    );
+}
 
         
 document.getElementById("risk").textContent = "Risk: " + data.risk;
@@ -811,7 +828,6 @@ def analyze():
     """
 
 
-
     try:
         contents = [prompt]
 
@@ -842,10 +858,16 @@ def analyze():
             config={
                 "response_mime_type": "application/json",
                 "temperature": 0.2,
-                "max_output_tokens": 500
+                "max_output_tokens": 1000
             }
         )
 
+        import json
+
+        if not response.text:
+            raise ValueError("Gemini returned an empty response.")
+
+        result = json.loads(response.text)
         import json
         result = json.loads(response.text)
 
@@ -901,14 +923,29 @@ def analyze():
 
     except Exception as e:
         app.logger.exception("Gemini analysis failed")
+
+        error_text = str(e)
+
+        if "503" in error_text or "UNAVAILABLE" in error_text:
+            message = "Gemini AI is temporarily experiencing high demand. Please wait a few minutes and try again."
+            status_code = 503
+
+        elif "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
+            message = "The Gemini API usage limit has been reached. Please try again later."
+            status_code = 429
+
+        else:
+            message = "An unexpected error occurred during analysis. Please try again later."
+            status_code = 500
+
         return jsonify({
             "category": "Analysis unavailable",
             "risk": "Uncertain",
-            "risk_explanation": str(e),
-            "reasons": "An error occurred during image or text analysis.",
-            "advice": "Please try again.",
+            "risk_explanation": message,
+            "reasons": message,
+            "advice": "Please wait and try again.",
             "emergency": "Uncertain"
-        }), 502
+        }), status_code
 
 
 
@@ -927,7 +964,8 @@ def get_history():
     return jsonify([dict(record) for record in records])
 
 
+init_db()
+
 if __name__ == "__main__":
-    init_db()
     app.run(debug=True)
 
