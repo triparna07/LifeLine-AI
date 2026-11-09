@@ -862,13 +862,14 @@ def analyze():
             }
         )
 
+        
         import json
 
         if not response.text:
             raise ValueError("Gemini returned an empty response.")
 
-        result = json.loads(response.text)
-        import json
+        
+
         result = json.loads(response.text)
 
         for field in (
@@ -922,6 +923,7 @@ def analyze():
         return jsonify(result)
 
     except Exception as e:
+        print("ACTUAL GEMINI ERROR:", repr(e), flush=True)
         app.logger.exception("Gemini analysis failed")
 
         error_text = str(e)
